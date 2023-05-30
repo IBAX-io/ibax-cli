@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/IBAX-io/go-ibax-sdk/packages/pkg/converter"
@@ -8,8 +9,12 @@ import (
 	"github.com/IBAX-io/ibax-cli/conf"
 	"github.com/IBAX-io/ibax-cli/models"
 	"github.com/IBAX-io/ibax-cli/packages/parameter"
+	"github.com/gabriel-vasile/mimetype"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
+	"strconv"
 )
 
 func getKeysInfoCmd(cmd *cobra.Command, args []string) {
@@ -664,28 +669,23 @@ func getListCmd(cmd *cobra.Command, params []string) {
 		log.Infof("tableName invalid:%s", err.Error())
 		return
 	}
-	defer func() {
-		//clean buffer
-		getListParams.Name = ""
-		getListParams.Offset = 0
-		getListParams.Limit = 0
-		getListParams.Where = nil
-		getListParams.Columns = ""
-		getListParams.Order = ""
-	}()
 
 	getListParams.Name = tableName
 	if getListParams.whereStr != "" {
 		getListParams.Where = getListParams.whereStr
 	}
+	defer func() {
+		getListParams.Name = ""
+		getListParams.Where = nil
+	}()
 
 	result, err := models.Client.GetList(getListParams.GetList)
 	if err != nil {
-		log.Infof("get history Failed: %s", err.Error())
+		log.Infof("get list Failed: %s", err.Error())
 		return
 	}
 	if result == nil {
-		log.Info("get history Result Empty")
+		log.Info("get list Result Empty")
 		return
 	}
 	str, err := json.MarshalIndent(*result, "", "    ")
@@ -805,4 +805,310 @@ func getMemberInfoCmd(cmd *cobra.Command, params []string) {
 		return
 	}
 	fmt.Printf("\n%+v\n", string(str))
+}
+
+func binaryVerifyCmd(cmd *cobra.Command, params []string) {
+	args := parameter.New(params)
+	binaryId, err := args.Set(0, true).NumberInt64()
+	if err != nil {
+		log.Infof("binary id invalid:%s", err.Error())
+		return
+	}
+	binaryHash, err := args.Set(1, true).String()
+	if err != nil {
+		log.Infof("binary hash invalid:%s", err.Error())
+		return
+	}
+
+	fileInfo, err := models.Client.BinaryVerify(binaryId, binaryHash, binaryFileName)
+	if err != nil {
+		fmt.Printf("binary verify failed: %s", err.Error())
+		return
+	}
+	str, err := json.MarshalIndent(fileInfo, "", "    ")
+	if err != nil {
+		fmt.Printf("Result marshall Failed:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("\n%+v\n", string(str))
+}
+
+func exportCmd(cmd *cobra.Command, params []string) {
+	args := parameter.New(params)
+	appId, err := args.Set(0, true).NumberInt64()
+	if err != nil {
+		log.Infof("account invalid:%s", err.Error())
+		return
+	}
+	cnf := models.Client.GetConfig()
+
+	account := cnf.Account
+	ecosystem := cnf.Ecosystem
+	contractParams := make(request.MapParams)
+	contractParams["ApplicationId"] = appId
+	result, err := models.Client.AutoCallContract("@1ExportNewApp", &contractParams, "")
+	if err != nil {
+		log.Infof("call @1ExportNewApp Failed: %s", err.Error())
+		return
+	}
+	if result == nil {
+		log.Info("call @1ExportNewApp Result Empty")
+		return
+	}
+	if result.BlockId == 0 || result.Hash == "" || result.Penalty == 1 || result.Err != "" {
+		str, err := json.MarshalIndent(*result, "", "    ")
+		if err != nil {
+			fmt.Printf("call @1ExportNewApp Result marshall Failed:%s\n", err.Error())
+			return
+		}
+		fmt.Printf("export process @1ExportNewApp failed: \n%+v\n", string(str))
+		return
+	}
+
+	result, err = models.Client.AutoCallContract("@1Export", nil, "")
+	if err != nil {
+		log.Infof("call @1Export Failed: %s", err.Error())
+		return
+	}
+	if result == nil {
+		log.Info("call @1Export Result Empty")
+		return
+	}
+	if result.BlockId == 0 || result.Hash == "" || result.Penalty == 1 || result.Err != "" {
+		str, err := json.MarshalIndent(*result, "", "    ")
+		if err != nil {
+			fmt.Printf("call @1Export Result marshall Failed:%s\n", err.Error())
+			return
+		}
+		fmt.Printf("export process @1Export failed: \n%+v\n", string(str))
+		return
+	}
+	var getListParams request.GetList
+	getListParams.Name = "@1binaries"
+	getListParams.Limit = 1
+	getListParams.Columns = "id,hash"
+	getListParams.Where = fmt.Sprintf(`{"name": "export", "account": "%s", "ecosystem": %d, "app_id": %d}`, account, ecosystem, appId)
+	listResult, err := models.Client.GetList(getListParams)
+	if err != nil {
+		fmt.Printf("export process GetList failed: %s", err.Error())
+		return
+	}
+	if listResult == nil {
+		log.Info("export process GetList Result Empty")
+		return
+	}
+
+	var binaryId int64
+	var binaryHash string
+	if listResult.Count == 1 {
+		value, ok := listResult.List[0]["id"]
+		if ok {
+			binaryId, _ = strconv.ParseInt(value, 10, 64)
+		}
+
+		value, ok = listResult.List[0]["hash"]
+		if ok {
+			binaryHash = value
+		}
+	}
+	if binaryHash == "" || binaryId == 0 {
+		str, err := json.MarshalIndent(*listResult, "", "    ")
+		if err != nil {
+			fmt.Printf("GetList Result marshall Failed:%s\n", err.Error())
+			return
+		}
+		fmt.Printf("export process GetList failed binaryHash or binaryId empty: \n%+v\n", string(str))
+		return
+	}
+
+	fileInfo, err := models.Client.BinaryVerify(binaryId, binaryHash, exportFileName)
+	if err != nil {
+		fmt.Printf("export process GetBinary failed: %s", err.Error())
+		return
+	}
+	str, err := json.MarshalIndent(fileInfo, "", "    ")
+	if err != nil {
+		fmt.Printf("Result marshall Failed:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("\n%+v\n", string(str))
+}
+
+func importCmd(cmd *cobra.Command, params []string) {
+	err := cobra.NoArgs(cmd, params)
+	if err != nil {
+		log.Infof("no parameters required: %s", err.Error())
+		return
+	}
+	if importFileName == "" {
+		log.Info("import file name can't not be empty")
+		return
+	}
+
+	data, err := os.ReadFile(importFileName)
+	if err != nil {
+		log.Infof("filename: [%s] readfile err: %s", importFileName, err.Error())
+		return
+	}
+	mimeType, _, err := getMimeType(importFileName)
+	if err != nil {
+		log.Infof("filename: [%s] getMimeType err: %s", importFileName, err.Error())
+		return
+	}
+
+	importInfo := make(map[string]any)
+	importInfo["Name"] = filepath.Base(importFileName)
+	importInfo["MimeType"] = mimeType
+	importInfo["Body"] = data
+	contractParams := make(request.MapParams)
+	contractParams["Data"] = importInfo
+	result, err := models.Client.AutoCallContract("@1ImportUpload", &contractParams, "")
+	if err != nil {
+		log.Infof("call @1ImportUpload Failed: %s", err.Error())
+		return
+	}
+	if result == nil {
+		log.Info("call @1ImportUpload Result Empty")
+		return
+	}
+	if result.BlockId == 0 || result.Hash == "" || result.Penalty == 1 || result.Err != "" {
+		str, err := json.MarshalIndent(*result, "", "    ")
+		if err != nil {
+			fmt.Printf("call @1ImportUpload Result marshall Failed:%s\n", err.Error())
+			return
+		}
+		fmt.Printf("import process @1ImportUpload failed: \n%+v\n", string(str))
+		return
+	}
+
+	cnf := models.Client.GetConfig()
+	var getListParams request.GetList
+	getListParams.Name = "@1buffer_data"
+	getListParams.Limit = 1
+	getListParams.Columns = "value->'data'"
+	getListParams.Where = fmt.Sprintf(`{"key": "import", "account": "%s", "ecosystem": %d}`, cnf.Account, cnf.Ecosystem)
+	listResult, err := models.Client.GetList(getListParams)
+	if err != nil {
+		fmt.Printf("import process GetList failed: %s", err.Error())
+		return
+	}
+	if listResult == nil {
+		log.Info("import process GetList Result Empty")
+		return
+	}
+	var bufferData string
+	var ret = make([]any, 0)
+	if listResult.Count == 1 {
+		value, ok := listResult.List[0]["value.data"]
+		if ok {
+			var d []map[string]any
+			err := json.Unmarshal([]byte(value), &d)
+			if err != nil {
+				return
+			}
+			for _, i2 := range d {
+				a, ok := i2["Data"]
+				if ok {
+					var b []any
+					err := json.Unmarshal([]byte(a.(string)), &b)
+					if err != nil {
+						return
+					}
+					ret = append(ret, b...)
+				}
+			}
+			bytes, _ := json.Marshal(ret)
+			bufferData = string(bytes)
+		}
+	}
+	if bufferData == "" {
+		str, err := json.MarshalIndent(*listResult, "", "    ")
+		if err != nil {
+			fmt.Printf("GetList Result marshall Failed:%s\n", err.Error())
+			return
+		}
+		fmt.Printf("import process GetList failed bufferData empty: \n%+v\n", string(str))
+		return
+	}
+
+	contractParams["Data"] = bufferData
+	importResult, err := models.Client.AutoCallContract("@1Import", &contractParams, "")
+	if err != nil {
+		log.Infof("call @1Import Failed: %s", err.Error())
+		return
+	}
+	if importResult == nil {
+		log.Info("call @1Import Result Empty")
+		return
+	}
+
+	str, err := json.MarshalIndent(importResult, "", "    ")
+	if err != nil {
+		fmt.Printf("Result marshall Failed:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("\n%+v\n", string(str))
+}
+
+func getMimeType(fileName string) (string, string, error) {
+	mType, err := mimetype.DetectFile(fileName)
+	if err != nil {
+		fmt.Printf("DetectFile err:%s\n", err.Error())
+		return "", "", err
+	}
+	return mType.String(), mType.Extension(), nil
+}
+
+func base64DecodeCmd(cmd *cobra.Command, params []string) {
+	args := parameter.New(params)
+	decodeData, err := args.Set(0, false).String()
+	if err != nil {
+		log.Infof("data invalid:%s", err.Error())
+		return
+	}
+	if decodeData == "" && decodeFileName == "" {
+		log.Info("decode data and file name must have one")
+		return
+	}
+
+	data, err := base64.StdEncoding.DecodeString(decodeData)
+	if err != nil {
+		log.Infof("data Decode failed:%s", err.Error())
+		return
+	}
+
+	if decodeFileName != "" {
+		err := os.WriteFile(decodeFileName, data, 0644)
+		if err != nil {
+			log.Info(err)
+			return
+		}
+	} else {
+		fmt.Printf("\nDecode:%s\n", string(data))
+	}
+}
+
+func base64EncodeCmd(cmd *cobra.Command, params []string) {
+	args := parameter.New(params)
+	encodeData, err := args.Set(0, false).String()
+	if err != nil {
+		log.Infof("data invalid:%s", err.Error())
+		return
+	}
+	if encodeData == "" && encodeFileName == "" {
+		log.Info("encode data and file name must have one")
+		return
+	}
+
+	var data []byte
+	if encodeFileName != "" {
+		data, err = os.ReadFile(encodeFileName)
+		if err != nil {
+			log.Infof("ReadFile failed: %s", err.Error())
+			return
+		}
+	} else {
+		data = []byte(encodeData)
+	}
+	fmt.Printf("\nEncode:%s\n", base64.StdEncoding.EncodeToString(data))
 }

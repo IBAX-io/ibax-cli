@@ -87,7 +87,10 @@ Returns converted address
 Result:
 	Address			(string) Account Address: "xxxx-xxxx-xxxx-xxxx-xxxx"
 `,
-		PreRun:     loadConfigPre,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			keyId = 0
+			loadConfigPre(cmd, args)
+		},
 		Run:        keyIdToAddress,
 		SuggestFor: []string{"keyIdToAddress --keyId="},
 		Example:    `./ibax-cli account keyIdToAddress --keyId=[KeyId]`,
@@ -213,11 +216,11 @@ func accountNew(cmd *cobra.Command, params []string) {
 	keyId := crypto.Address(publicKey)
 	address := converter.AddressToString(keyId)
 
-	fmt.Printf("Path of the private key file:%s\n", privateKeyName)
-	fmt.Printf("Path of the public key file:%s\n", publicKeyName)
-	fmt.Printf("Public Key:%s\n", crypto.PubToHex(publicKey))
-	fmt.Printf("KeyId:%d\n", keyId)
-	fmt.Printf("address:%s\n", address)
+	fmt.Printf("Path of the private key file: %s\n", privateKeyName)
+	fmt.Printf("Path of the public key file: %s\n", publicKeyName)
+	fmt.Printf("Public Key: %s\n", crypto.PubToHex(publicKey))
+	fmt.Printf("KeyId: %d\n", keyId)
+	fmt.Printf("address: %s\n", address)
 	fmt.Printf("%s\n", newAccountWarning)
 }
 
@@ -292,7 +295,7 @@ func publicKeyToAddress(cmd *cobra.Command, params []string) {
 	keyId := crypto.Address(pub)
 	address := converter.AddressToString(keyId)
 
-	fmt.Printf("\nkeyId:%d,account address:%s\n", keyId, address)
+	fmt.Printf("\nkeyId: %d,account address: %s\n", keyId, address)
 }
 
 func addressToKeyId(cmd *cobra.Command, params []string) {
@@ -318,9 +321,6 @@ func keyIdToAddress(cmd *cobra.Command, params []string) {
 		return
 	}
 	address := converter.AddressToString(keyId)
-	defer func() {
-		keyId = 0
-	}()
 	if address == "" {
 		fmt.Printf("invalid Key Id:%d\n", keyId)
 		return

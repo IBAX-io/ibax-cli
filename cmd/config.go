@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"github.com/IBAX-io/go-ibax-sdk/packages/pkg/common/crypto"
 	"github.com/IBAX-io/ibax-cli/conf"
@@ -56,9 +57,16 @@ func init() {
 }
 
 // Load the configuration from file
-func loadConfig() {
+func loadConfig(cmd *cobra.Command) {
 	err := conf.LoadConfig(conf.Config.ConfigPath)
 	if err != nil {
+		if models.IsConsoleMode() {
+			ctx := cmd.Context()
+			ctx = context.WithValue(ctx, "error", err.Error())
+			cmd.SetContext(ctx)
+			models.SendErrSignal(fmt.Errorf("loading config ,err: %s", err.Error()), false)
+			return
+		}
 		log.WithError(err).Fatal("Loading config")
 	}
 	rpcHost := joinHost(conf.Config.RpcConnect, conf.Config.RpcPort)
@@ -71,7 +79,7 @@ func loadConfigPre(cmd *cobra.Command, args []string) {
 	if models.Client != nil {
 		return
 	}
-	loadConfig()
+	loadConfig(cmd)
 	models.NewClient()
 }
 

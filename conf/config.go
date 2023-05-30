@@ -33,6 +33,7 @@ func LoadConfig(configPath string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("\n" + `You can specify the configuration file path, use "--path" flag or make configuration, use "config" command`)
+			fmt.Printf("can't not file:%s\n", configPath)
 		}
 		return err
 	}

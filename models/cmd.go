@@ -1,5 +1,16 @@
 package models
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"github.com/spf13/cobra"
+)
 
-var RootCmd *cobra.Command
+var globalCmd cobra.Command
+
+func InitGlobalCmd(cmd *cobra.Command) {
+	if cmd != nil {
+		globalCmd = *cmd
+	} else {
+		panic(fmt.Errorf("init global cmd failed"))
+	}
+}

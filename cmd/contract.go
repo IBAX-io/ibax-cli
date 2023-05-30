@@ -8,6 +8,8 @@ import (
 	"github.com/IBAX-io/ibax-cli/packages/parameter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"os"
+	"strings"
 )
 
 // contract
@@ -79,7 +81,8 @@ Returns information about the specified contract.
 		Run:        getContractInfoCmd,
 	}
 
-	callContract = &cobra.Command{
+	contractParamsFile string
+	callContract       = &cobra.Command{
 		Use:   "callContract [ContractName] [Params] [Expedite]",
 		Short: "call IBAX contract",
 		Long: `
@@ -163,6 +166,10 @@ func getContractInfoCmd(cmd *cobra.Command, params []string) {
 }
 
 func callContractCmd(cmd *cobra.Command, params []string) {
+	if hasErrorContext(cmd) {
+		return
+	}
+
 	args := parameter.New(params)
 	contractName, err := args.Set(0, true).String()
 	if err != nil {
@@ -181,12 +188,39 @@ func callContractCmd(cmd *cobra.Command, params []string) {
 		return
 	}
 
+	if contractParamsFile != "" {
+		data, err := os.ReadFile(contractParamsFile)
+		if err != nil {
+			log.Infof("ReadFile Failed:%s", err.Error())
+			return
+		}
+		contractParamsStr = string(data)
+	}
 	var contractParams request.MapParams
 	if contractParamsStr != "" {
 		err := json.Unmarshal([]byte(contractParamsStr), &contractParams)
 		if err != nil {
 			log.Infof("Params JSON Parsing Failed: %s", err.Error())
 			return
+		}
+		const suffix = "-"
+		const fileSuffix = "-file"
+		for k, _ := range contractParams {
+			if strings.Contains(k, suffix) {
+				if strings.HasSuffix(k, fileSuffix) {
+					paramsName := k[:len(fileSuffix)]
+					data, err := os.ReadFile(contractParams.Get(k))
+					if err != nil {
+						log.Infof("parse params file failed: %s", err.Error())
+						return
+					}
+					delete(contractParams, k)
+					contractParams[paramsName] = string(data)
+				} else {
+					log.Infof("contract params [%s] invalid!", k)
+					return
+				}
+			}
 		}
 	}
 

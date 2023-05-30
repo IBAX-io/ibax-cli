@@ -68,7 +68,7 @@ func init() {
 
 	conf.SetDefaultConfig()
 	viper.BindPFlags(cmdFlags)
-	models.RootCmd = rootCmd
+	models.InitGlobalCmd(rootCmd)
 }
 
 func defaultConfigPath() string {
