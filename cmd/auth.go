@@ -82,6 +82,7 @@ func refreshCmd(cmd *cobra.Command, args []string) {
 		RpcPort:     rpcPort,
 		DirPathConf: dirPath,
 	}
+	conf.SetDefaultConfig()
 	loadConfigPre(cmd, args)
 	if hasErrorContext(cmd) {
 		cleanErrorContext(cmd)

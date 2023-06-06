@@ -13,10 +13,16 @@ import (
 
 // GlobalConfig is storing all startup config as global struct
 type GlobalConfig struct {
-	SdkConfig   sdk.Config      `json:"sdk_config" yaml:"sdk_config"`
+	sdkConfig sdk.Config `yaml:"-"`
+
+	PrivateKey string `json:"private_key" yaml:"private_key # private key. Do not use clear text. You can set the environment variable. The key controls access to your funds!"` // private key
+	Ecosystem  int64  `yaml:"ecosystem # Login ecosystem Id"`
+	Cryptoer   string `json:"cryptoer" yaml:"cryptoer"`
+	Hasher     string `json:"hasher" yaml:"hasher"`
+
 	ConfigPath  string          `json:"config_path" yaml:"-"`
-	RpcConnect  string          `json:"rpc_connect" yaml:"-"`
-	RpcPort     int             `json:"rpc_port" yaml:"-"`
+	RpcConnect  string          `json:"rpc_connect" yaml:"rpc_connect"`
+	RpcPort     int             `json:"rpc_port" yaml:"rpc_port"`
 	LinerPath   string          `json:"liner_path" yaml:"liner_path"`
 	DirPathConf DirectoryConfig `json:"dir_path_conf" yaml:"dir_path_conf"`
 }
@@ -83,6 +89,20 @@ func SaveConfig(path string) error {
 }
 
 func SetDefaultConfig() {
-	Config.SdkConfig.EnableRpc = true
-	Config.SdkConfig.JwtPrefix = "Bearer "
+	Config.sdkConfig.EnableRpc = true
+	Config.sdkConfig.JwtPrefix = "Bearer "
+}
+
+func GetSdkConfig() sdk.Config {
+	return Config.sdkConfig
+}
+
+func UpdateSdkConfig(host string) {
+	Config.sdkConfig.Hasher = Config.Hasher
+	Config.sdkConfig.Cryptoer = Config.Cryptoer
+	Config.sdkConfig.PrivateKey = Config.PrivateKey
+
+	if host != Config.sdkConfig.ApiAddress {
+		Config.sdkConfig.ApiAddress = host
+	}
 }

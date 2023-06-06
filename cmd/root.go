@@ -63,7 +63,7 @@ func init() {
 	cmdFlags := rootCmd.PersistentFlags()
 	// This flags are visible for all child commands
 	cmdFlags.StringVar(&conf.Config.ConfigPath, "path", defaultConfigPath(), "filepath to config.yml")
-	cmdFlags.StringVar(&conf.Config.RpcConnect, "rcpConnect", consts.DefaultConnect, "Send commands to node running on <ip>")
+	cmdFlags.StringVar(&conf.Config.RpcConnect, "rcpConnect", consts.DefaultConnect, "Send commands to node running on <connect>")
 	cmdFlags.IntVar(&conf.Config.RpcPort, "rpcPort", consts.DefaultPort, "Connect to JSON-RPC on <port>")
 
 	conf.SetDefaultConfig()
