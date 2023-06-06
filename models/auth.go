@@ -3,8 +3,6 @@ package models
 import (
 	"context"
 	"fmt"
-	"github.com/IBAX-io/go-ibax-sdk/packages/client"
-	"github.com/IBAX-io/ibax-cli/conf"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"time"
@@ -43,8 +41,4 @@ func RefreshToken(cmd *cobra.Command) {
 			return
 		}
 	}
-}
-
-func NewClient() {
-	Client = client.NewClient(conf.Config.SdkConfig)
 }

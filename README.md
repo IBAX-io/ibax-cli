@@ -28,6 +28,7 @@ The console command starts the console program, integrates most commands, and in
 ```bash
 $  ibax-cli config
 ```
+The `config` command contains flags: `connect,cryptoer,dataDir,ecosystem,hasher string,keysDir,port`.Can be viewed through help naming
 
 2. start console or run command
 ```bash
