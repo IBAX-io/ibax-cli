@@ -1,13 +1,12 @@
 module github.com/IBAX-io/ibax-cli
 
-go 1.19
+go 1.20
 
 require (
 	github.com/IBAX-io/go-ibax-sdk v0.0.0-00010101000000-000000000000
 	github.com/gabriel-vasile/mimetype v1.4.2
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
 	github.com/pkg/errors v0.9.1
-	github.com/rakyll/magicmime v0.1.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5

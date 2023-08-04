@@ -15,8 +15,8 @@ import (
 type GlobalConfig struct {
 	sdkConfig sdk.Config `yaml:"-"`
 
-	PrivateKey string `json:"private_key" yaml:"private_key # private key. Do not use clear text. You can set the environment variable. The key controls access to your funds!"` // private key
-	Ecosystem  int64  `yaml:"ecosystem # Login ecosystem Id"`
+	PrivateKey string `json:"private_key" yaml:"private_key"` // private key. Do not use clear text. You can set the environment variable. The key controls access to your funds!
+	Ecosystem  int64  `json:"ecosystem" yaml:"ecosystem"`     //Login ecosystem Id
 	Cryptoer   string `json:"cryptoer" yaml:"cryptoer"`
 	Hasher     string `json:"hasher" yaml:"hasher"`
 
@@ -101,6 +101,7 @@ func UpdateSdkConfig(host string) {
 	Config.sdkConfig.Hasher = Config.Hasher
 	Config.sdkConfig.Cryptoer = Config.Cryptoer
 	Config.sdkConfig.PrivateKey = Config.PrivateKey
+	Config.sdkConfig.Ecosystem = Config.Ecosystem
 
 	if host != Config.sdkConfig.ApiAddress {
 		Config.sdkConfig.ApiAddress = host
