@@ -165,6 +165,23 @@ func getContractInfoCmd(cmd *cobra.Command, params []string) {
 	fmt.Printf("\n%+v\n", string(str))
 }
 
+func isFileType(arr []string) bool { //{"Name": string, "MimeType": string, "Body": bytes}
+	var hasName, hasMimeType, hasBody bool
+	for _, key := range arr {
+		if key == "Name" {
+			hasName = true
+		} else if key == "MimeType" {
+			hasMimeType = true
+		} else if key == "Body" {
+			hasBody = true
+		}
+	}
+	if hasName && hasMimeType && hasBody {
+		return true
+	}
+	return false
+}
+
 func callContractCmd(cmd *cobra.Command, params []string) {
 	if hasErrorContext(cmd) {
 		return
@@ -196,6 +213,7 @@ func callContractCmd(cmd *cobra.Command, params []string) {
 		}
 		contractParamsStr = string(data)
 	}
+	//models.Client.PrepareContractTx()
 	var contractParams request.MapParams
 	if contractParamsStr != "" {
 		err := json.Unmarshal([]byte(contractParamsStr), &contractParams)
@@ -203,23 +221,55 @@ func callContractCmd(cmd *cobra.Command, params []string) {
 			log.Infof("Params JSON Parsing Failed: %s", err.Error())
 			return
 		}
-		const suffix = "-"
 		const fileSuffix = "-file"
-		for k, _ := range contractParams {
-			if strings.Contains(k, suffix) {
-				if strings.HasSuffix(k, fileSuffix) {
-					paramsName := k[:len(fileSuffix)]
-					data, err := os.ReadFile(contractParams.Get(k))
-					if err != nil {
-						log.Infof("parse params file failed: %s", err.Error())
-						return
+		for k, v := range contractParams {
+			switch v.(type) {
+			case map[string]interface{}:
+				m := v.(map[string]interface{})
+				var keys []string
+				for mk, mv := range m {
+					if strings.HasSuffix(mk, fileSuffix) {
+						paramsName := mk[:len(fileSuffix)-1]
+						switch mv.(type) {
+						case string:
+							data, err := os.ReadFile(mv.(string))
+							if err != nil {
+								log.Infof("parse params file failed: %s", err.Error())
+								return
+							}
+							delete(m, mk)
+							m[paramsName] = string(data)
+							keys = append(keys, paramsName)
+						default:
+							log.Infof("params %s file type invalid", mk)
+						}
+					} else {
+						keys = append(keys, mk)
 					}
-					delete(contractParams, k)
-					contractParams[paramsName] = string(data)
-				} else {
-					log.Infof("contract params [%s] invalid!", k)
+				}
+				contractParams[k] = m
+				if isFileType(keys) {
+					for mk, mv := range m {
+						if mk == "Body" {
+							switch mv.(type) {
+							case string:
+								str := mv.(string)
+								m[mk] = []byte(str)
+							}
+						}
+					}
+					contractParams[k] = m
+				}
+			}
+			if strings.HasSuffix(k, fileSuffix) {
+				paramsName := k[:len(fileSuffix)-1]
+				data, err := os.ReadFile(contractParams.Get(k))
+				if err != nil {
+					log.Infof("parse params file failed: %s", err.Error())
 					return
 				}
+				delete(contractParams, k)
+				contractParams[paramsName] = string(data)
 			}
 		}
 	}

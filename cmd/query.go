@@ -674,6 +674,13 @@ func getListCmd(cmd *cobra.Command, params []string) {
 	if getListParams.whereStr != "" {
 		getListParams.Where = getListParams.whereStr
 	}
+	if getListParams.orderStr != "" {
+		err = json.Unmarshal([]byte(getListParams.orderStr), &getListParams.Order)
+		if err != nil {
+			log.Infof("order invalid:%s", err.Error())
+			return
+		}
+	}
 	defer func() {
 		getListParams.Name = ""
 		getListParams.Where = nil
