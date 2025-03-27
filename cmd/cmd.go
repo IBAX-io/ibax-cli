@@ -651,6 +651,7 @@ Result:
 
 	getListParams struct {
 		request.GetList
+		orderStr string
 		whereStr string
 	}
 	getList = &cobra.Command{
@@ -935,7 +936,7 @@ func initFlags() {
 
 	getList.Flags().IntVarP(&getListParams.Limit, "limit", "l", 0, "the number of Omitempty entries,default 25")
 	getList.Flags().IntVarP(&getListParams.Offset, "offset", "t", 0, "offset,default 0")
-	getList.Flags().StringVarP(&getListParams.Order, "order", "r", "", "sorting method, default id ASC")
+	getList.Flags().StringVarP(&getListParams.orderStr, "order", "r", "", "sorting method, default id ASC")
 	getList.Flags().StringVarP(&getListParams.Columns, "columns", "c", "", "A comma-separated list of Omitempty request columns, if not specified, all columns will be returned.")
 	getList.Flags().StringVarP(&getListParams.whereStr, "where", "w", "", `
 Query conditions

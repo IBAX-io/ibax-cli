@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/IBAX-io/go-ibax-sdk/packages/client"
-	"github.com/IBAX-io/go-ibax-sdk/packages/pkg/common/crypto"
+	"github.com/IBAX-io/go-ibax/packages/common/crypto"
 	"github.com/IBAX-io/ibax-cli/conf"
 	"github.com/IBAX-io/ibax-cli/models"
 	"github.com/IBAX-io/ibax-cli/packages/consts"
